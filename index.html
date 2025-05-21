@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Greatness Fitness Web</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom CSS for font-family and basic body styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            background-color: black; /* Background set to black */
+        }
+        /* Ensure content is not hidden by fixed navigation */
+        main {
+            padding-bottom: 5rem; /* Adjust based on your nav height */
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8); /* Darker overlay for black background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3); /* Darker shadow */
+            width: 90%;
+            max-width: 400px;
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Specific style for the fake Google pop-up to look more like a separate window */
+        #fakeGooglePopup .modal-content {
+            max-width: 500px; /* Wider for a more typical pop-up feel */
+            padding: 2rem;
+            text-align: center;
+        }
+
+        /* Notification Message Styles (Toast) */
+        #notificationMessage {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px); /* Start off-screen above */
+            background-color: #22c55e; /* Green-500 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1100; /* Above modals */
+            opacity: 0;
+            visibility: hidden;
+            transition: transform 0.4s ease-out, opacity 0.4s ease-out, visibility 0.4s ease-out;
+            text-align: center;
+            white-space: nowrap; /* Prevent text wrapping */
+        }
+        #notificationMessage.show {
+            transform: translateX(-50%) translateY(0); /* Slide into view */
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Chat Message Styles */
+        .chat-message {
+            background-color: #333; /* Dark background for chat messages */
+            color: #eee;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .chat-message.admin {
+            background-color: #4a90e2; /* Admin message color (blue) */
+            margin-left: auto; /* Align admin messages to the right */
+        }
+        .chat-message .sender-name {
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+            color: #90caf9; /* Lighter blue for sender name */
+        }
+        .chat-message .timestamp {
+            font-size: 0.75rem;
+            color: #bbb;
+            margin-top: 0.25rem;
+            text-align: right;
+        }
+    </style>
+</head>
+<body class="bg-black flex flex-col min-h-screen">
+    <!-- Note: This is a client-side HTML/CSS/JS application.
+         The domain 'www.greatnessfitnessweb' is a placeholder for a real deployed website.
+         To actually use this domain, you would need to register it and host your website. -->
+
+    <div class="flex flex-col h-screen bg-black font-sans antialiased text-gray-900">
+
+        <header class="bg-white shadow-sm p-4 flex items-center justify-between sticky top-0 z-10 rounded-b-xl">
+            <h1 class="text-2xl font-bold text-gray-800">Greatness Fitness Web</h1>
+            <div class="flex space-x-4 items-center">
+                <button id="notificationBellButton" class="p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bell text-gray-600"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                </button>
+                <div id="authStatusContainer">
+                    <button id="signInButton" class="p-2 px-4 rounded-full bg-blue-500 text-white font-medium hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200">
+                        Sign In
+                    </button>
+                    <span id="userNameDisplay" class="hidden text-lg font-medium text-gray-800"></span>
+                </div>
+            </div>
+        </header>
+
+        <main id="app-content" class="flex-1 overflow-y-auto p-6 pb-20 text-white"> </main>
+
+        <div class="fixed bottom-20 right-6 z-20">
+            <button id="fabButton" class="bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-200 ease-in-out transform hover:scale-105">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-circle"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+            </button>
+        </div>
+
+        <nav class="fixed bottom-0 left-0 right-0 bg-white shadow-lg p-4 flex justify-around items-center z-10 rounded-t-xl">
+            <button id="nav-habits" class="nav-item flex flex-col items-center p-2 rounded-lg transition-colors duration-200 text-blue-600 bg-blue-50" data-tab="habits">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span class="text-xs mt-1">Habits</span>
+            </button>
+
+            <button id="nav-goals" class="nav-item flex flex-col items-center p-2 rounded-lg transition-colors duration-200 text-gray-500 hover:text-blue-600" data-tab="goals">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-target"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                <span class="text-xs mt-1">Goals</span>
+            </button>
+
+            <button id="nav-journal" class="nav-item flex flex-col items-center p-2 rounded-lg transition-colors duration-200 text-gray-500 hover:text-blue-600" data-tab="journal">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-open"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                <span class="text-xs mt-1">Journal</span>
+            </button>
+
+            <button id="nav-insights" class="nav-item flex flex-col items-center p-2 rounded-lg transition-colors duration-200 text-gray-500 hover:text-blue-600" data-tab="insights">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bar-chart-2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+                <span class="text-xs mt-1">Insights</span>
+            </button>
+
+            <button id="nav-community" class="nav-item flex flex-col items-center p-2 rounded-lg transition-colors duration-200 text-gray-500 hover:text-blue-600" data-tab="community">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span class="text-xs mt-1">Community</span>
+            </button>
+
+            <button id="nav-profile" class="nav-item flex flex-col items-center p-2 rounded-lg transition-colors duration-200 text-gray-500 hover:text-blue-600" data-tab="profile">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="text-xs mt-1">Profile</span>
+            </button>
+        </nav>
+    </div>
+
+    <div id="addItemModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="addItemTitle" class="text-xl font-semibold mb-4 text-gray-800">Add New Item</h2>
+
+            <label for="itemType" class="block text-sm font-medium text-gray-700 text-left mb-1">Item Type</label>
+            <select id="itemType" class="w-full p-3 border border-gray-300 rounded-lg mb-3 focus:ring-blue-500 focus:border-blue-500">
+                <option value="text">General Text</option>
+                <option value="phone">Phone Number</option>
+                <option value="goal">Goal Description</option>
+                <option value="journal">Journal Entry</option>
+                <option value="habit">Habit</option>
+                <option value="insight_note">Insight Note</option>
+                <option value="profile_note">Profile Note</option>
+            </select>
+
+            <label for="itemTitleInput" class="block text-sm font-medium text-gray-700 text-left mb-1">Title/Name</label>
+            <input type="text" id="itemTitleInput" class="w-full p-3 border border-gray-300 rounded-lg mb-3 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter a title or name">
+
+            <label for="itemContentInput" class="block text-sm font-medium text-gray-700 text-left mb-1">Content</label>
+            <textarea id="itemContentInput" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-blue-500 focus:border-blue-500 resize-y" rows="4" placeholder="Enter content..."></textarea>
+            <input type="tel" id="itemPhoneInput" class="hidden w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter phone number (e.g., +1-555-123-4567)">
+
+            <div class="flex justify-end space-x-3">
+                <button id="cancelAddItem" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200">Cancel</button>
+                <button id="saveItem" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-200">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="signInModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Sign In</h2>
+            <input type="text" id="usernameInput" class="w-full p-3 border border-gray-300 rounded-lg mb-3 focus:ring-blue-500 focus:border-blue-500" placeholder="Username">
+            <input type="password" id="passwordInput" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-blue-500 focus:border-blue-500" placeholder="Password">
+            <button id="googleSignInButton" class="w-full flex items-center justify-center p-3 border border-gray-300 rounded-lg mb-4 bg-white hover:bg-gray-50 transition-colors duration-200">
+                <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12.24 10.27c-.24 0-.47-.02-.7-.04-.5-.07-.99-.17-1.47-.3-.48-.13-.94-.29-1.39-.48-.45-.19-.88-.4-1.29-.64-.41-.24-.8-.5-.1.1-.38-.27-.74-.55-1.07-.84-.33-.29-.64-.59-.93-.9-.29-.31-.56-.64-.81-.98-.25-.34-.47-.69-.67-1.05-.2-.36-.38-.73-.54-1.1-.16-.37-.29-.75-.39-1.14-.1-.39-.18-.79-.22-1.2-.04-.41-.05-.82-.03-1.23.02-.41.08-.81.18-1.2.1-.39.23-.77.39-1.13.16-.36.35-.7.57-1.02.22-.32.47-.62.75-.9.28-.28.59-.54.93-.78.34-.24.7-.46 1.09-.65.39-.19.8-.34 1.22-.46.42-.12.85-.2 1.29-.24.44-.04.88-.04 1.32 0 .44.04.87.12 1.29.24.42.12.83.28 1.22.48.39.2.76.44 1.1.7.34.26.65.54.93.84.28.3.53.62.75.95.22.33.41.68.57 1.04.16.36.29.73.39 1.1.1.37.18.75.22 1.14.04.39.05.79.03 1.19-.02.4-.08.8-.18 1.18-.1.38-.23.75-.39 1.1-.16.35-.35.69-.57 1.01-.22.32-.47.62-.75.9-.28.28-.59.54-.93.78-.34.24-.7.46-1.09.65-.39.19-.8.34-1.22.46-.42.12-.85.2-1.29.24-.44.04-.88.04-1.32 0z" fill="#EA4335"/><path d="M22.56 12.27c0-.78-.07-1.53-.2-2.26H12v4.51h6.17c-.25 1.43-1.04 2.64-2.29 3.47v2.94h3.76c2.2-2.02 3.47-4.93 3.47-8.47z" fill="#4285F4"/><path d="M12 23.98c3.23 0 5.92-1.07 7.89-2.94l-3.76-2.94c-1.05.7-2.39 1.11-4.13 1.11-3.18 0-5.87-2.14-6.83-5.01H1.32v2.94c1.97 3.9 6.07 6.64 10.68 6.64z" fill="#34A853"/><path d="M5.17 14.24c-.2-.59-.31-1.22-.31-1.87s.11-1.28.31-1.87V8.56H1.32c-.6 1.2-.95 2.56-.95 4.08s.35 2.88.95 4.08L5.17 14.24z" fill="#FBBC05"/></svg>
+                Sign In with Google
+            </button>
+            <div class="flex justify-end space-x-3">
+                <button id="cancelSignIn" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200">Cancel</button>
+                <button id="loginButton" class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-200">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="fakeGooglePopup" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">Sign in to Google</h2>
+            <p class="text-sm text-gray-600 mb-4">Choose an account to continue to Greatness Fitness Web</p>
+            <div class="flex items-center p-3 border border-gray-300 rounded-lg mb-3 cursor-pointer hover:bg-gray-50 transition-colors duration-200" id="chooseGoogleAccount">
+                <img src="https://placehold.co/32x32/cccccc/ffffff?text=U" alt="User Avatar" class="rounded-full mr-3">
+                <div>
+                    <p class="font-medium text-gray-800">user@example.com</p>
+                    <p class="text-xs text-gray-500">Google Account</p>
+                </div>
+            </div>
+            <div class="flex items-center p-3 border border-gray-300 rounded-lg mb-4 cursor-pointer hover:bg-gray-50 transition-colors duration-200" id="useAnotherAccount">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus mr-3 text-gray-600"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                <p class="font-medium text-blue-600">Use another account</p>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button id="cancelGooglePopup" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="notificationModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Notifications</h2>
+            <div id="notificationsList" class="max-h-64 overflow-y-auto mb-4 p-2 border border-gray-200 rounded-lg bg-gray-50">
+                <p class="text-gray-500 text-sm">No new notifications.</p>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button id="clearNotificationsButton" class="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors duration-200">Clear All</button>
+                <button id="closeNotificationsButton" class="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors duration-200">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="notificationMessage" role="alert"></div>
+
+    <script>
+        // JavaScript for handling tab switching, content rendering, and modal interactions
+
+        // Get references to DOM elements
+        const appContent = document.getElementById('app-content');
+        const navItems = document.querySelectorAll('.nav-item');
+        const fabButton = document.getElementById('fabButton');
+        const addItemModal = document.getElementById('addItemModal');
+        const addItemTitle = document.getElementById('addItemTitle');
+        const itemTypeSelect = document.getElementById('itemType');
+        const itemTitleInput = document.getElementById('itemTitleInput');
+        const itemContentInput = document.getElementById('itemContentInput');
+        const itemPhoneInput = document.getElementById('itemPhoneInput');
+        const saveItemButton = document.getElementById('saveItem');
+        const cancelAddItemButton = document.getElementById('cancelAddItem');
+
+        const signInButton = document.getElementById('signInButton');
+        const authStatusContainer = document.getElementById('authStatusContainer');
+        const userNameDisplay = document.getElementById('userNameDisplay');
+
+        const signInModal = document.getElementById('signInModal');
+        const usernameInput = document.getElementById('usernameInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginButton = document.getElementById('loginButton');
+        const googleSignInButton = document.getElementById('googleSignInButton');
+        const cancelSignInButton = document.getElementById('cancelSignIn');
+
+        const googleAccountDetailsModal = document.getElementById('googleAccountDetailsModal');
+        const googleEmailInput = document.getElementById('googleEmailInput');
+        const googlePasswordInput = document.getElementById('googlePasswordInput');
+        const confirmGoogleSignInButton = document.getElementById('confirmGoogleSignIn');
+        const cancelGoogleSignInButton = document.getElementById('cancelGoogleSignIn');
+
+        const fakeGooglePopup = document.getElementById('fakeGooglePopup');
+        const chooseGoogleAccountButton = document.getElementById('chooseGoogleAccount');
+        const useAnotherAccountButton = document.getElementById('useAnotherAccount');
+        const cancelGooglePopup = document.getElementById('cancelGooglePopup');
+
+        const notificationMessage = document.getElementById('notificationMessage'); // Toast notification
+        const notificationBellButton = document.getElementById('notificationBellButton'); // Bell icon button
+        const notificationModal = document.getElementById('notificationModal'); // Notification list modal
+        const notificationsList = document.getElementById('notificationsList'); // Container for notifications
+        const clearNotificationsButton = document.getElementById('clearNotificationsButton');
+        const closeNotificationsButton = document.getElementById('closeNotificationsButton');
+
+        // Global state variables
+        let currentActiveTab = 'habits';
+        let loggedInUserName = null; // Stores the name of the currently logged-in user
+        let isAdmin = false; // Flag for admin view
+        const notifications = []; // Array to store simulated notifications
+        const chatMessages = []; // Array to store simulated chat messages
+
+        // Function to render content based on the active tab
+        const renderContent = (activeTab) => {
+            let contentHtml = '';
+            // Adjust text colors for contrast on black background
+            const textColorClass = 'text-white';
+            const cardBgClass = 'bg-gray-800'; // Darker cards for black background
+            const cardTextColorClass = 'text-gray-200'; // Lighter text for dark cards
+            const cardSubtextColorClass = 'text-gray-400'; // Lighter subtext for dark cards
+
+
+            switch (activeTab) {
+                case 'habits':
+                    contentHtml = `
+                        <div class="p-6 ${textColorClass}">
+                            <h2 class="text-2xl font-semibold mb-4">Your Habits</h2>
+                            <p class="text-lg mb-2">Track your daily routines and build consistency.</p>
+                            <div class="${cardBgClass} p-4 rounded-lg shadow-md mb-4 ${cardTextColorClass}">
+                                <h3 class="font-medium text-lg">Morning Routine</h3>
+                                <p class="text-sm ${cardSubtextColorClass}">Drink water, meditate, exercise.</p>
+                            </div>
+                            <div class="${cardBgClass} p-4 rounded-lg shadow-md ${cardTextColorClass}">
+                                <h3 class="font-medium text-lg">Evening Reflection</h3>
+                                <p class="text-sm ${cardSubtextColorClass}">Journal, plan for tomorrow, read.</p>
+                            </div>
+                            <p class="mt-4 text-sm ${textColorClass}">Click the '+' button to add a new habit!</p>
+                        </div>
+                    `;
+                    break;
+                case 'goals':
+                    contentHtml = `
+                        <div class="p-6 ${textColorClass}">
+                            <h2 class="text-2xl font-semibold mb-4">Your Goals</h2>
+                            <p class="text-lg mb-2">Set ambitious targets and track your progress.</p>
+                            <div class="${cardBgClass} p-4 rounded-lg shadow-md mb-4 ${cardTextColorClass}">
+                                <h3 class="font-medium text-lg">Learn React</h3>
+                                <p class="text-sm ${cardSubtextColorClass}">Complete 3 tutorials per week.</p>
+                            </div>
+                            <div class="${cardBgClass} p-4 rounded-lg shadow-md ${cardTextColorClass}">
+                                <h3 class="font-medium text-lg">Run a Marathon</h3>
+                                <p class="text-sm ${cardSubtextColorClass}">Follow training plan, increase mileage.</p>
+                            </div>
+                            <p class="mt-4 text-sm ${textColorClass}">Define your future with new goals!</p>
+                        </div>
+                    `;
+                    break;
+                case 'journal':
+                    contentHtml = `
+                        <div class="p-6 ${textColorClass}">
+                            <h2 class="text-2xl font-semibold mb-4">Your Journal</h2>
+                            <p class="text-lg mb-2">Reflect on your day, thoughts, and feelings.</p>
+                            <div class="${cardBgClass} p-4 rounded-lg shadow-md mb-4 ${cardTextColorClass}">
+                                <h3 class="font-medium text-lg">May 20, 2025</h3>
+                                <p class="text-sm ${cardSubtextColorClass}">Today was productive...</p>
+                            </div>
+                            <div class="${cardBgClass} p-4 rounded-lg shadow-md ${cardTextColorClass}">
+                                <h3 class="font-medium text-lg">May 19, 2025</h3>
+                                <p class="text-sm ${cardSubtextColorClass}">Felt grateful for...</p>
+                            </div>
+                            <p class="mt-4 text-sm ${textColorClass}">Capture your moments and insights.</p>
+                        </div>
+                    `;
+                    break;
+                case 'insights':
+                    contentHtml = `
+                        <div class="p-6 ${textColorClass}">
+                            <h2 class="text-2xl font-semibold mb-4">Your Insights</h2>
+                            <p class="text-lg mb-2">Visualize your progress and identify patterns.</p>
+                            <div class="${cardBgClass} p-4 rounded-lg shadow-md mb-4 flex items-center justify-center h-32 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bar-chart-2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+                                <p class="ml-4">Charts and data will appear here!</p>
+                            </div>
+                            <p class="mt-4 text-sm ${textColorClass}">Unlock your potential with data-driven insights.</p>
+                        </div>
+                    `;
+                    break;
+                case 'community': // New Community (Chat) tab content
+                    contentHtml = `
+                        <div class="p-6 ${textColorClass} flex flex-col h-full">
+                            <h2 class="text-2xl font-semibold mb-4">Community Chat</h2>
+                            <div id="chatMessages" class="flex-1 overflow-y-auto bg-gray-900 p-4 rounded-lg shadow-inner mb-4">
+                                <p class="text-gray-500 text-sm">Welcome to the chat! Say hello!</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="text" id="chatInput" class="flex-1 p-3 border border-gray-700 bg-gray-800 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Type your message...">
+                                <button id="sendMessageButton" class="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send"><path d="m22 2-7 20-4-9-9-4 20-7Z"/><path d="M15 15l4 4"/></svg>
+                                </button>
+                            </div>
+                            <div class="mt-2 text-right">
+                                <button id="toggleAdminView" class="px-3 py-1 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors duration-200">
+                                    Toggle Admin View
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'profile': // Profile tab content
+                    contentHtml = `
+                        <div class="p-6 ${textColorClass}">
+                            <h2 class="text-2xl font-semibold mb-4">About Me</h2>
+                            <div class="${cardBgClass} p-6 rounded-lg shadow-md ${cardTextColorClass}">
+                                <h3 class="font-medium text-xl mb-2">Professional Introduction</h3>
+                                <p class="text-base mb-4">
+                                    Hello! I'm a dedicated individual passionate about personal growth and well-being.
+                                    I believe in the power of consistent habits, clear goals, and thoughtful reflection
+                                    to achieve true greatness. This app is designed to help you on your journey
+                                    towards a more fulfilling and productive life.
+                                </p>
+                                <p class="text-base">
+                                    My background includes experience in software development, fitness coaching, and personal development.
+                                    I'm committed to creating tools that empower individuals to reach their full potential.
+                                </p>
+                                <p class="text-sm ${cardSubtextColorClass} mt-4">
+                                    Feel free to explore the app and start building your own path to greatness!
+                                </p>
+                            </div>
+                            <div class="${cardBgClass} p-4 rounded-lg shadow-md mt-4 ${cardTextColorClass}">
+                                <h3 class="font-medium text-lg">Contact Information</h3>
+                                <p class="text-sm ${cardSubtextColorClass}">Email: greatafangide@gmail.com</p>
+                                <p class="text-sm ${cardSubtextColorClass}">Phone: 09021788348</p>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                default:
+                    contentHtml = '';
+            }
+            appContent.innerHTML = contentHtml;
+
+            // After content is rendered, re-attach chat listeners if on community tab
+            if (activeTab === 'community') {
+                attachChatListeners();
+                renderChatMessages(); // Render existing messages
+            }
+        };
+
+        // Function to update active tab styling
+        const updateActiveTabStyle = (newActiveTab) => {
+            navItems.forEach(item => {
+                item.classList.remove('text-blue-600', 'bg-blue-50');
+                item.classList.add('text-gray-500', 'hover:text-blue-600');
+
+                if (item.dataset.tab === newActiveTab) {
+                    item.classList.remove('text-gray-500', 'hover:text-blue-600');
+                    item.classList.add('text-blue-600', 'bg-blue-50');
+                }
+            });
+            currentActiveTab = newActiveTab; // Update the global active tab state
+        };
+
+        // Function to set the logged-in user's name in the header and show notification
+        const setLoggedInUser = (userName) => {
+            loggedInUserName = userName; // Set global logged-in user name
+            signInButton.classList.add('hidden'); // Hide the Sign In button
+            userNameDisplay.textContent = `Welcome, ${userName}!`; // Set the user's name
+            userNameDisplay.classList.remove('hidden'); // Show the user name display
+            showNotification(`Welcome, ${userName}! You are now signed in.`); // Show visual notification
+
+            // Add a notification for successful sign-in
+            addNotification(`You have successfully signed in as ${userName}.`);
+        };
+
+        // --- Notification Functions ---
+        // Function to show a temporary toast notification message
+        const showNotification = (message) => {
+            notificationMessage.textContent = message;
+            notificationMessage.classList.add('show');
+            setTimeout(() => {
+                notificationMessage.classList.remove('show');
+            }, 3000); // Hide after 3 seconds
+        };
+
+        // Function to add a notification to the notifications array
+        const addNotification = (message) => {
+            const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            notifications.unshift({ message: message, timestamp: timestamp }); // Add to the beginning
+            // Keep only the latest 10 notifications for simplicity
+            if (notifications.length > 10) {
+                notifications.pop();
+            }
+        };
+
+        // Function to render notifications in the notification modal
+        const renderNotifications = () => {
+            notificationsList.innerHTML = ''; // Clear existing notifications
+            if (notifications.length === 0) {
+                notificationsList.innerHTML = '<p class="text-gray-500 text-sm">No new notifications.</p>';
+            } else {
+                notifications.forEach(notif => {
+                    const div = document.createElement('div');
+                    div.className = 'p-2 border-b border-gray-100 last:border-b-0';
+                    div.innerHTML = `<p class="text-gray-800">${notif.message}</p><p class="text-xs text-gray-500 text-right">${notif.timestamp}</p>`;
+                    notificationsList.appendChild(div);
+                });
+            }
+        };
+
+        // --- Chat Functions ---
+        // Function to render chat messages
+        const renderChatMessages = () => {
+            const chatMessagesContainer = document.getElementById('chatMessages');
+            if (!chatMessagesContainer) return; // Exit if chat container not found
+
+            chatMessagesContainer.innerHTML = ''; // Clear existing messages
+
+            if (chatMessages.length === 0) {
+                chatMessagesContainer.innerHTML = '<p class="text-gray-500 text-sm">Welcome to the chat! Say hello!</p>';
+            } else {
+                chatMessages.forEach(msg => {
+                    const div = document.createElement('div');
+                    div.className = `chat-message ${msg.isAdmin ? 'admin' : ''}`;
+                    div.innerHTML = `
+                        <p class="sender-name">${msg.sender}</p>
+                        <p>${msg.text}</p>
+                        <p class="timestamp">${msg.timestamp}</p>
+                    `;
+                    chatMessagesContainer.appendChild(div);
+                });
+                // Scroll to the bottom of the chat
+                chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+            }
+        };
+
+        // Function to send a chat message
+        const sendChatMessage = () => {
+            const chatInput = document.getElementById('chatInput');
+            if (!chatInput) return;
+
+            const messageText = chatInput.value.trim();
+            if (messageText) {
+                const senderName = loggedInUserName || "Guest";
+                const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                const message = {
+                    sender: senderName,
+                    text: messageText,
+                    timestamp: timestamp,
+                    isAdmin: isAdmin // Apply admin style if toggle is on
+                };
+                chatMessages.push(message); // Add message to array
+                renderChatMessages(); // Re-render all messages
+                chatInput.value = ''; // Clear input field
+                showNotification(`Message sent to community!`); // Notify user
+            }
+        };
+
+        // Function to attach chat specific event listeners
+        const attachChatListeners = () => {
+            const sendMessageButton = document.getElementById('sendMessageButton');
+            const chatInput = document.getElementById('chatInput');
+            const toggleAdminViewButton = document.getElementById('toggleAdminView');
+
+            if (sendMessageButton) {
+                sendMessageButton.onclick = sendChatMessage; // Use onclick to re-assign
+            }
+            if (chatInput) {
+                chatInput.onkeypress = (e) => { // Use onkeypress to re-assign
+                    if (e.key === 'Enter') {
+                        sendChatMessage();
+                    }
+                };
+            }
+            if (toggleAdminViewButton) {
+                toggleAdminViewButton.onclick = () => { // Use onclick to re-assign
+                    isAdmin = !isAdmin; // Toggle admin status
+                    toggleAdminViewButton.textContent = isAdmin ? "Admin View ON" : "Toggle Admin View";
+                    showNotification(`Admin view: ${isAdmin ? 'ON' : 'OFF'}`);
+                    renderChatMessages(); // Re-render messages to apply/remove admin style
+                };
+                // Set initial text for the toggle button
+                toggleAdminViewButton.textContent = isAdmin ? "Admin View ON" : "Toggle Admin View";
+            }
+        };
+
+
+        // --- Modal Functions (re-defined for clarity) ---
+
+        // Function to show a modal
+        const showModal = (modalElement) => {
+            modalElement.classList.add('active');
+        };
+
+        // Function to hide a modal
+        const hideModal = (modalElement) => {
+            modalElement.classList.remove('active');
+        };
+
+        // --- Event Listeners ---
+
+        // Navigation button click handler
+        navItems.forEach(button => {
+            button.addEventListener('click', () => {
+                const tab = button.dataset.tab;
+                renderContent(tab);
+                updateActiveTabStyle(tab);
+            });
+        });
+
+        // FAB button click handler
+        fabButton.addEventListener('click', () => {
+            // Reset fields and set default type
+            itemTitleInput.value = '';
+            itemContentInput.value = '';
+            itemPhoneInput.value = '';
+            itemContentInput.classList.remove('hidden'); // Default to textarea
+            itemPhoneInput.classList.add('hidden'); // Hide phone input
+
+            // Dynamically set modal title, selected type, and placeholder based on current tab
+            switch (currentActiveTab) {
+                case 'habits':
+                    addItemTitle.textContent = 'Add New Habit';
+                    itemTypeSelect.value = 'habit';
+                    itemContentInput.placeholder = 'Describe your new habit (e.g., "Meditate for 10 mins daily")';
+                    break;
+                case 'goals':
+                    addItemTitle.textContent = 'Add New Goal';
+                    itemTypeSelect.value = 'goal';
+                    itemContentInput.placeholder = 'Describe your new goal (e.g., "Learn C# by end of month")';
+                    break;
+                case 'journal':
+                    addItemTitle.textContent = 'Add New Journal Entry';
+                    itemTypeSelect.value = 'journal';
+                    itemContentInput.placeholder = 'Write your journal entry for today...';
+                    break;
+                case 'insights':
+                    addItemTitle.textContent = 'Add New Insight Note';
+                    itemTypeSelect.value = 'insight_note';
+                    itemContentInput.placeholder = 'Note down a new insight or observation...';
+                    break;
+                case 'profile':
+                    addItemTitle.textContent = 'Add Profile Note';
+                    itemTypeSelect.value = 'profile_note';
+                    itemContentInput.placeholder = 'Add a personal note to your profile...';
+                    break;
+                case 'community': // For community tab, default to general text or a chat-specific type
+                    addItemTitle.textContent = 'Add Community Post';
+                    itemTypeSelect.value = 'text'; // Or a new 'community_post' type if needed
+                    itemContentInput.placeholder = 'Write a new community post...';
+                    break;
+                default:
+                    addItemTitle.textContent = 'Add New Item';
+                    itemTypeSelect.value = 'text';
+                    itemContentInput.placeholder = 'Enter general text...';
+                    break;
+            }
+
+            showModal(addItemModal);
+        });
+
+        // Handle change on Item Type dropdown
+        itemTypeSelect.addEventListener('change', () => {
+            const selectedType = itemTypeSelect.value;
+            // Hide all specific content inputs first
+            itemContentInput.classList.add('hidden');
+            itemPhoneInput.classList.add('hidden');
+
+            // Show the appropriate input based on selected type
+            if (selectedType === 'phone') {
+                itemPhoneInput.classList.remove('hidden');
+                itemContentInput.placeholder = ""; // Clear placeholder if not used
+            } else {
+                itemContentInput.classList.remove('hidden');
+                // Set placeholder based on selected type
+                if (selectedType === 'goal') {
+                    itemContentInput.placeholder = "Describe your goal...";
+                } else if (selectedType === 'journal') {
+                    itemContentInput.placeholder = "Write your journal entry...";
+                } else if (selectedType === 'habit') {
+                    itemContentInput.placeholder = "Describe your habit...";
+                } else if (selectedType === 'insight_note') {
+                    itemContentInput.placeholder = "Enter your insight...";
+                } else if (selectedType === 'profile_note') {
+                    itemContentInput.placeholder = "Enter your profile note...";
+                } else { // 'text' or 'community_post'
+                    itemContentInput.placeholder = "Enter general text...";
+                }
+            }
+        });
+
+
+        // Save Item button in Add Item Modal
+        saveItemButton.addEventListener('click', () => {
+            const itemType = itemTypeSelect.value;
+            const itemTitle = itemTitleInput.value.trim();
+            let itemContent = '';
+
+            if (itemType === 'phone') {
+                itemContent = itemPhoneInput.value.trim();
+            } else {
+                itemContent = itemContentInput.value.trim();
+            }
+
+            if (itemTitle && itemContent) {
+                console.log(`New item added:`);
+                console.log(`  Type: ${itemType}`);
+                console.log(`  Title: "${itemTitle}"`);
+                console.log(`  Content: "${itemContent}"`);
+                // In a real app, you would save this data (e.g., to a list, then to a backend)
+                // You would also update the UI to show the new item in the relevant section.
+                showNotification(`New ${itemType} "${itemTitle}" added!`); // Notify user
+            } else {
+                console.log("Please enter both a title and content for the item.");
+                showNotification("Please enter both a title and content for the item."); // Notify user of error
+            }
+            hideModal(addItemModal);
+        });
+
+        // Cancel Add Item button
+        cancelAddItemButton.addEventListener('click', () => {
+            hideModal(addItemModal);
+        });
+
+        // Sign In button click handler (opens traditional sign-in modal)
+        signInButton.addEventListener('click', () => {
+            usernameInput.value = ''; // Clear username field
+            passwordInput.value = ''; // Clear password field
+            showModal(signInModal);
+        });
+
+        // Login button in Sign In Modal (for traditional username/password)
+        loginButton.addEventListener('click', () => {
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+            if (username && password) {
+                console.log(`Attempting traditional login with Username: "${username}" and Password: "${password}"`);
+                console.log("NOTE: This is a client-side placeholder. Full login requires a backend.");
+                setLoggedInUser(username); // Simulate login success and display username
+            } else {
+                console.log("Please enter both username and password.");
+                showNotification("Login failed: Please enter both username and password."); // Notify user of error
+            }
+            hideModal(signInModal);
+        });
+
+        // Google Sign-In button handler (now directly opens the fake Google pop-up)
+        googleSignInButton.addEventListener('click', () => {
+            hideModal(signInModal); // Hide the initial sign-in modal
+            showModal(fakeGooglePopup); // Show the fake Google pop-up
+            console.log("NOTE: In a real app, clicking 'Sign In with Google' would trigger an OAuth popup directly from Google.");
+        });
+
+        // --- Handlers for the Fake Google Pop-up ---
+
+        // When "Choose an account" (simulated existing account) is clicked
+        chooseGoogleAccountButton.addEventListener('click', () => {
+            const simulatedEmail = "greatafangide@gmail.com"; // Using provided email for simulation
+            console.log(`Simulating Google Sign-In with existing account: "${simulatedEmail}"`);
+            console.log(`Simulated: Notification sent to "${simulatedEmail}" (requires backend email service).`);
+            const userName = simulatedEmail.split('@')[0] || "Google User";
+            setLoggedInUser(userName); // Display the user's name in the header
+            hideModal(fakeGooglePopup); // Hide the fake Google pop-up
+        });
+
+        // When "Use another account" is clicked (simulates going to the email/password input)
+        useAnotherAccountButton.addEventListener('click', () => {
+            hideModal(fakeGooglePopup); // Hide the fake Google pop-up
+            googleEmailInput.value = ''; // Clear fields
+            googlePasswordInput.value = '';
+            showModal(googleAccountDetailsModal); // Show the Google account details modal
+            console.log("NOTE: In a real app, 'Use another account' would lead to Google's own email/password input.");
+        });
+
+        // Cancel button in the fake Google pop-up
+        cancelGooglePopup.addEventListener('click', () => {
+            hideModal(fakeGooglePopup);
+        });
+
+        // --- Existing: Handlers for Google Account Details Modal (if "Use another account" is chosen) ---
+
+        // Confirm Google Sign In button handler in the Google account details modal
+        confirmGoogleSignInButton.addEventListener('click', () => {
+            const googleEmail = googleEmailInput.value.trim();
+            const googlePassword = googlePasswordInput.value.trim();
+
+            if (googleEmail && googlePassword) {
+                console.log(`Simulating Google Sign-In with Email: "${googleEmail}" and Password: "${googlePassword}"`);
+                console.log(`Simulated: User "${googleEmail}" has signed in with Google.`);
+                console.log(`Simulated: Notification sent to "${googleEmail}" (requires backend email service).`);
+
+                const userName = googleEmail.split('@')[0] || "Google User";
+                setLoggedInUser(userName); // Display the user's name in the header
+            } else {
+                console.log("Please enter both Google Email and Password.");
+                showNotification("Google Sign-In failed: Please enter both email and password."); // Notify user of error
+            }
+            hideModal(googleAccountDetailsModal);
+        });
+
+        // Cancel Google Sign In button in the Google account details modal
+        cancelGoogleSignInButton.addEventListener('click', () => {
+            hideModal(googleAccountDetailsModal);
+        });
+
+        // Cancel Sign In button (from traditional modal)
+        cancelSignInButton.addEventListener('click', () => {
+            hideModal(signInModal);
+        });
+
+        // --- Notification Bell Button Handlers ---
+        notificationBellButton.addEventListener('click', () => {
+            renderNotifications(); // Update notifications in the modal before showing
+            showModal(notificationModal);
+        });
+
+        clearNotificationsButton.addEventListener('click', () => {
+            notifications.length = 0; // Clear the array
+            renderNotifications(); // Re-render to show "No new notifications"
+            showNotification("All notifications cleared.");
+        });
+
+        closeNotificationsButton.addEventListener('click', () => {
+            hideModal(notificationModal);
+        });
+
+
+        // Initial content load when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            renderContent(currentActiveTab); // Default to 'habits' tab on load
+            updateActiveTabStyle(currentActiveTab); // Set initial active style
+            // Add a welcome notification on initial load
+            addNotification("Welcome to Greatness Fitness Web!");
+        });
+    </script>
+</body>
+</html>
